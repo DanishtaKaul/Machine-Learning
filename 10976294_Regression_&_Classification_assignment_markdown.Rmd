@@ -1,5 +1,5 @@
 ---
-title: "10976294_statistical_learning_assignment"
+title: "10976294_assignment"
 author: '10976294'
 date: "4/23/2022"
 output: html_document
