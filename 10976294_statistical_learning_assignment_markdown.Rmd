@@ -1,0 +1,1909 @@
+---
+title: "10976294_statistical_learning_assignment"
+author: '10976294'
+date: "4/23/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load the Packages
+
+This is my statistical learning assignment. For this assignment I will work on two questions, for the first question I will work on a regression problem to build a predictive model(regression is the task of predicting a continuous quantity.), while for the second question I will work on a classification problem to build a predictive model (classification is the task of predicting a discrete class label).
+
+First, I will load my packages. The first package I have loaded is `Mass` which includes the `lda` function used for conducting linear discriminant analysis. The second package I have loaded is `ISLR2` which contains the Boston dataset. The third packages I have loaded is `corrr` which includes the `correlate` and `focus` function, used for conducting correlation. The fourth package I have loaded is `ggcorrplot` which is used to visualize a correlation matrix. The fifth package I have loaded is `tidyverse` which is a collection of R packages that work well together. The sixth package I have loaded is `car` which includes the `vif` function used to calculate the variation inflation factors of all predictors in regression models. The seventh package I have loaded is `effects` which is used for effect displays of linear, generalized linear and other models. The eight package I have loaded is `caret` which contains functions that streamline the process for creating predictive models. The ninth package I have loaded is `splines` which provides functions for working with regression splines. The tenth package I have loaded is `leaps` which contains the `regsubsets()` function used for model selection. Next I have loaded the `e1071` package which contains the `naiveBayes` function. Finally, I have loaded the `class` package which contains the `knn()` function which is used to identify the k-nearest (K is a user specified number) neighbors using Euclidean distance.
+
+```{r, message=FALSE}
+library(MASS) 
+library(ISLR2)
+library(corrr) 
+library(ggcorrplot)
+library(tidyverse)
+library(car)
+library(effects)
+library(caret)
+library(splines)
+library(leaps) 
+library(e1071) 
+library(class) 
+
+```
+
+## Read in the Data
+
+In this code chunk I have read in my data and saved it as an object called **RegressionData**. The `head` function has been used to view the data.
+
+This is a description of the dataset columns- 1) nox - nitrogen oxides concentration (parts per 10 million); 2) age - proportion of owner-occupied units built prior to 1940; 3) dis - weighted mean of distances to five Boston employment centres; 4) lstat - lower status (lower education or manual labour jobs) of the population (percent); 5) medv - median value of owner-occupied homes in $1000s.
+
+In the following code chunks I will try and predict the concentration of nitrogen oxides (nox) using age, dis, lstat and
+medv as input variables. Here, nox is the output variable.
+```{r}
+set.seed(123)
+
+RegressionData <- Boston[,c(5,7,8,12,13)]
+
+head(RegressionData)
+```
+
+## Check for Missing Values
+
+Here, I have checked whether there are any missing values in my data. It can be seen that there are no missing values in the data
+```{r}
+sum(is.na(RegressionData))
+```
+## Determine the Correlation Between the Input Variables and the Output Variable
+
+Here I have used the `correlate` and `focus` (from `corrr` package) function to determine the correlation between the input variables (age, dis, lstat and medv) and the output variable (nox).
+
+The output shows that there is a strong positive correlation between age and nox (0.73), while there is a strong negative correlation between dis and nox (-0.76). There is a moderate positive correlation between lstat and nox (0.59), and a moderate negative correlation between medv and nox (-0.42) (Schober et al., 2018). 
+
+(*Note here that the values have not been rounded off, same will be followed for all subsequently reported values*)
+
+```{r}
+RegressionData %>% correlate() %>% focus(nox)
+
+```
+
+## Determine the Correlation Between all Variables
+
+Here, I have used the `cor` function to calculate the correlation between all variables. The output has been saved as a new object called **corr_boston**.
+```{r}
+corr_boston = cor(RegressionData)
+
+print(corr_boston)
+```
+
+## Plot a Correlation Matrix
+
+Here, I have used the `ggcorrplot` function to plot a correlation matrix displaying the correlation between all the variables. In the line of code that follows `ggcorrplot`, `hc.order= True` is used for reordering the correlation matrix using hierarchical clustering, `type="upper"` is used to specify the type of correlogram layout,i.e., upper triangle, `lab=TRUE` is used to add correlation coefficients and `ggtheme` has been used to set the theme of the plot.
+I have used the previously created *corr_boston* object to plot the correlation matrix.
+```{r}
+ggcorrplot(corr_boston, hc.order = TRUE, type = "upper", lab= TRUE, lab_size=3,ggtheme = ggplot2::theme_gray, title="Correlation Between Each Variable in Boston Dataset")
+```
+
+
+## Build the Linear Regression Model
+
+Here, I have built a linear regression model using the `lm` function. The  output variable is *nox* while the input variables are *age, dis, lstat and medv*. The output has been saved as a new object called **lm.fit**.
+
+Since the number of input variables is reasonably small, I have included all the variables in the model. In the following code chunks I will try to refine my model to build the most parsimonious model possible (a model that achieves a desired level of goodness of fit using as few explanatory variables as possible).
+```{r}
+set.seed(123)
+
+lm.fit_model <- lm(nox~ age + dis + lstat + medv,  data=RegressionData)
+
+lm.fit_model
+```
+
+
+## Generate the Summary of the Linear Model
+
+Here, I have generate the summary of the previously created linear model (*lm.fit*). It can be seen that the input variables age, dis and medv are significant (p<0.001). However, the input variable lstat is not significant.
+
+
+The `mean(lm.fit$residuals^2)` code has been used to calculate the mean squared error (MSE). MSE measures the amount of error in statistical models and indicates how close a regression line is to a set of points. Therefore, low MSE values are considered better. 
+
+The **MSE** value for the linear model is **0.004260951** which indicates a good match between the actual and predicted dataset.
+
+R-squared (R2) is a measure of the goodness of fit of a model (higher R2 indicates the model is a good fit, R2 range is from 0 to 1) . Adjusted R-squared (Adjusted R2) is a modified version of R2 that has been adjusted for the number of predictors in the model.The Adjusted R2 value increases when the new input term improves the model more than would be expected by chance. The **Adjusted R2** value for the linear model is **0.6795**.
+
+```{r}
+set.seed(123)
+
+summary(lm.fit_model)
+
+mean(lm.fit_model$residuals^2)
+
+```
+
+## Calculate the Variance Inflation Factor
+
+Here I have used the `vif()` function (from the `car` package) to compute the variance inflation factors.
+
+A variance inflation factor(VIF) is used to check for multicollinearity in regression analysis. Multicollinearity exists when an independent variable is highly correlated with one or more of the other independent variables and it can undermine the statistical significane of an independent variable.
+The VIF measures the extent to which the variance of a regression coefficient is inflated due to multicollinearity in the model. VIF values greater than 5 are generally regarded as high (James et al., 2021)
+
+The VIF values for the linear model are low, indicating a low correlation among variables.
+```{r}
+vif(lm.fit_model)
+```
+
+
+## Diagnostic Plots
+
+Here, I will examine some diagnostic plots of my data. Applying the `plot()` function to the output from `lm()` produces four diagnostic plots.
+
+In order to view all four plots together I have used the `par()` and `mfrow()` functions, which tell R to split the display screen into separate panels. For instance, par(mfrow = c(2, 2)) divides the plotting region into a 2×2 grid of panels.
+The residuals vs. fitted plot shows that there might be some non-linearity in the data.
+```{r}
+par(mfrow = c(2, 2))
+plot(lm.fit_model)
+```
+
+
+## Plot the Data for Input Variable `age`
+
+Here, I will plot the input variable *age* to check if using a non-linear approach would provide a better model fit. In order to do so I will plot *age* to view the fitted effect with partial residuals.
+The output of the plot below shows the models prediction and 95% confidence bands in blue, while the partial residuals are represented as pink circles.
+
+The pink line (using a LOESS smoothing method) shows the general shape in the data. The degree to which the blue model fit differs from the pink line suggests that the correct shape of the relationship might not have been captured. 
+
+*Note, in the code chunks that follow, I have used a similar approach to plot the other input variables (dis, lstat and medv).*
+
+```{r}
+set.seed(123)
+
+lm.fit <- lm(nox~ age, data=RegressionData)
+plot(effect("age", mod=lm.fit, partial.residuals=TRUE))
+
+```
+
+
+## Plot the Data for Input Variable `dis`
+
+As mentioned in the previous code chunk (*Plot the Data for Input Variable `age`*) I have made a plot for the input variable `dis` to check if using a non-linear approach would improve the model fit.
+The degree to which the blue model fit differs from the pink line suggests that the correct shape of the relationship might not have been captured.
+```{r}
+set.seed(123)
+
+lm.fit2 <- lm(nox~ dis, data=RegressionData)
+plot(effect("dis", mod=lm.fit2, partial.residuals=TRUE))
+```
+
+
+## Plot the Data for Input Variable `lstat`
+
+As mentioned in the previous code chunk (*Plot the Data for Input Variable `age`*) I have made a plot for the input variable `lstat` to check if using a non-linear approach would improve the model fit.
+The degree to which the blue model fit differs from the pink line suggests that the correct shape of the relationship might not have been captured.
+```{r}
+set.seed(123)
+
+lm.fit3 <- lm(nox~ lstat, data=RegressionData)
+plot(effect("lstat", mod=lm.fit3, partial.residuals=TRUE))
+```
+
+
+## Plot the Data for Input Variable `medv`
+
+As mentioned in the previous code chunk (*Plot the Data for Input Variable `age`*) I have made a plot for the input variable `medv` to check if using a non-linear approach would improve the model fit.
+The degree to which the blue model fit differs from the pink line suggests that the correct shape of the relationship might not have been captured.
+```{r}
+set.seed(123)
+
+lm.fit4 <- lm(nox~ medv, data=RegressionData)
+plot(effect("medv", mod=lm.fit4, partial.residuals=TRUE))
+```
+
+
+## Attempting a Polynomial Fit for `age`
+
+From the output of the plots displayed above, there appears to be a non-linear relationship between the input variables (*age, dis, lstat and medv*) and the output variable *nox*.
+Hence, I will now try a polynomial fit while using cross-validation to determine the degree of the polynomial. 
+By using the code shown below, I will try up to an eighth degree polynomial, where I repeatedly use the `train()` (from `caret` package) function with a different model formula, then gather the MSE values and store them in a vector for plotting.
+The function `trainControl` has be used to specify the type of resampling, i.e., `LOOCV` (Leave-One-Out Cross-Validation (LOOCV) is a type of cross-validation where only a single observation is held out for validation and the model is evaluated for every held out observation).
+
+From the plot below, it can be seen that a third degree polynomial is best.  The code `which.min(MSE)` has been used to see which index is associated with the smallest MSE.
+Indeed, when I refit the model with a third degree polynomial and plot the effect, I can see that it is much closer to the pink curve.
+
+*Note, here that I have used a similar code in the following code chunks to determine the polynomial degree of the other input variables (dis, lstat and medv).*
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="LOOCV")
+
+fit.1 <- train(nox~age + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+fit.2 <- train(nox~poly(age,2) + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+fit.3 <- train(nox~poly(age,3) + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+fit.4 <- train(nox~poly(age,4) + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+fit.5 <- train(nox~poly(age,5) + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+fit.6 <- train(nox~poly(age,6) + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+fit.7 <- train(nox~poly(age,7) + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+fit.8 <- train(nox~poly(age,8) + dis + lstat + medv, data= RegressionData, method="lm", trControl= train_control)
+
+MSE <- rep(0,8)
+MSE[1] <- fit.1$results$RMSE
+MSE[2] <- fit.2$results$RMSE
+MSE[3] <- fit.3$results$RMSE
+MSE[4] <- fit.4$results$RMSE
+MSE[5] <- fit.5$results$RMSE
+MSE[6] <- fit.6$results$RMSE
+MSE[7] <- fit.7$results$RMSE
+MSE[8] <- fit.8$results$RMSE
+
+plot(1:8, MSE, type="b", xlab="degree")
+
+which.min(MSE)
+
+fit_age <- lm(nox ~ poly(age, 3), data = RegressionData)
+plot(effect("age", mod=fit_age, partial.residuals=TRUE))
+```
+
+
+## Attempting a Polynomial Fit for `dis`
+
+I have used a similar process as detailed in the previous code chunk (*Attempting a Polynomial Fit for `age`*) to try a polynomial fit for the input variable `dis`.
+From the plot below, it can be seen that a fourth degree polynomial is best. The code `which.min(MSE)` has been used to see which index is associated with the smallest MSE.
+Indeed, when I refit the model with a fourth degree polynomial and plot the effect, I can see that it is much closer to the pink curve.
+
+```{r}
+set.seed(123)
+
+train_control2 <- trainControl(method="LOOCV")
+
+fit.1_dis <- train(nox~dis + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+fit.2_dis <- train(nox~poly(dis,2) + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+fit.3_dis <- train(nox~poly(dis,3) + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+fit.4_dis <- train(nox~poly(dis,4) + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+fit.5_dis <- train(nox~poly(dis,5) + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+fit.6_dis <- train(nox~poly(dis,6) + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+fit.7_dis <- train(nox~poly(dis,7) + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+fit.8_dis <- train(nox~poly(dis,8) + age + lstat + medv, data= RegressionData, method="lm", trControl= train_control2)
+
+MSE_dis <- rep(0,8)
+MSE_dis[1] <- fit.1_dis$results$RMSE
+MSE_dis[2] <- fit.2_dis$results$RMSE
+MSE_dis[3] <- fit.3_dis$results$RMSE
+MSE_dis[4] <- fit.4_dis$results$RMSE
+MSE_dis[5] <- fit.5_dis$results$RMSE
+MSE_dis[6] <- fit.6_dis$results$RMSE
+MSE_dis[7] <- fit.7_dis$results$RMSE
+MSE_dis[8] <- fit.8_dis$results$RMSE
+
+plot(1:8, MSE_dis, type="b", xlab="degree")
+
+which.min(MSE_dis)
+
+fit_dis <- lm(nox ~ poly(dis, 4), data = RegressionData)
+plot(effect("dis", mod=fit_dis, partial.residuals=TRUE))
+
+```
+
+
+## Attempting a Polynomial Fit for `lstat`
+
+I have used a similar process as detailed in the previous code chunk (*Attempting a Polynomial Fit for `age`*) to try a polynomial fit for the input variable `lstat`.
+From the plot below, it can be seen that a third degree polynomial is best. The code `which.min(MSE)` has been used to see which index is associated with the smallest MSE.
+Indeed, when I refit the model with a third degree polynomial and plot the effect, I can see that it is much closer to the pink curve.
+
+```{r}
+set.seed(123)
+
+train_control3 <- trainControl(method="LOOCV")
+
+fit.1_lstat <- train(nox~lstat + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+fit.2_lstat <- train(nox~poly(lstat,2) + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+fit.3_lstat <- train(nox~poly(lstat,3) + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+fit.4_lstat <- train(nox~poly(lstat,4) + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+fit.5_lstat <- train(nox~poly(lstat,5) + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+fit.6_lstat <- train(nox~poly(lstat,6) + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+fit.7_lstat <- train(nox~poly(lstat,7) + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+fit.8_lstat <- train(nox~poly(lstat,8) + age + dis + medv, data= RegressionData, method="lm", trControl= train_control3)
+
+MSE_lstat <- rep(0,8)
+MSE_lstat[1] <- fit.1_lstat$results$RMSE
+MSE_lstat[2] <- fit.2_lstat$results$RMSE
+MSE_lstat[3] <- fit.3_lstat$results$RMSE
+MSE_lstat[4] <- fit.4_lstat$results$RMSE
+MSE_lstat[5] <- fit.5_lstat$results$RMSE
+MSE_lstat[6] <- fit.6_lstat$results$RMSE
+MSE_lstat[7] <- fit.7_lstat$results$RMSE
+MSE_lstat[8] <- fit.8_lstat$results$RMSE
+
+plot(1:8, MSE_lstat, type="b", xlab="degree")
+
+which.min(MSE_lstat)
+
+fit_lstat <- lm(nox ~ poly(lstat, 3), data = RegressionData)
+plot(effect("lstat", mod=fit_lstat, partial.residuals=TRUE))
+
+```
+
+
+## Attempting a Polynomial Fit for `medv`
+
+I have used a similar process as detailed in the previous code chunk (*Attempting a Polynomial Fit for `age`*) to try a polynomial fit for the input variable `medv`.
+From the plot below, it can be seen that a fifth degree polynomial is best. The code `which.min(MSE)` has been used to see which index is associated with the smallest MSE.
+Indeed, when I refit the model with a fifth degree polynomial and plot the effect, I can see that it is much closer to the pink curve.
+
+```{r}
+set.seed(123)
+
+train_control4 <- trainControl(method="LOOCV")
+
+fit.1_medv <- train(nox~medv + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+fit.2_medv <- train(nox~poly(medv,2) + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+fit.3_medv <- train(nox~poly(medv,3) + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+fit.4_medv <- train(nox~poly(medv,4) + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+fit.5_medv <- train(nox~poly(medv,5) + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+fit.6_medv <- train(nox~poly(medv,6) + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+fit.7_medv <- train(nox~poly(medv,7) + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+fit.8_medv <- train(nox~poly(medv,8) + age + dis + lstat, data= RegressionData, method="lm", trControl= train_control4)
+
+MSE_medv <- rep(0,8)
+MSE_medv[1] <- fit.1_medv$results$RMSE
+MSE_medv[2] <- fit.2_medv$results$RMSE
+MSE_medv[3] <- fit.3_medv$results$RMSE
+MSE_medv[4] <- fit.4_medv$results$RMSE
+MSE_medv[5] <- fit.5_medv$results$RMSE
+MSE_medv[6] <- fit.6_medv$results$RMSE
+MSE_medv[7] <- fit.7_medv$results$RMSE
+MSE_medv[8] <- fit.8_medv$results$RMSE
+
+plot(1:8, MSE_medv, type="b", xlab="degree")
+
+which.min(MSE_medv)
+
+fit_medv <- lm(nox ~ poly(medv, 5), data = RegressionData)
+plot(effect("medv", mod=fit_medv, partial.residuals=TRUE))
+
+```
+
+
+## Polynomial Model Performance Metrics for `age`
+
+Here, I have built a polynomial regression model by using the `poly` function to specify a third degree polynomial for `age`.
+The code `mean(polynomial_model_age$residuals^2)` has been used to calculate the MSE. The MSE value for the model is *0.00572601* while the Adjusted R2 value is *0.5702* (*these values will be used subsequently for making comparisons between different models*).
+I have used a similar code in the following code chunks to report the model performance metrics for the other input variables (*dis, lstat and medv*).
+
+(*Note, that the `poly` function returns or evaluates orthogonal polynomials*)
+
+```{r}
+set.seed(123)
+
+polynomial_model_age <-lm(nox ~ poly(age, 3), data = RegressionData)
+
+summary(polynomial_model_age)
+
+mean(polynomial_model_age$residuals^2)
+```
+
+## Polynomial Model Performance Metrics for `dis`
+
+Here, I have built a polynomial regression model by using the `poly` function to specify a fourth degree polynomial for `dis`.
+The MSE value for the model is *0.003820121* while the Adjusted R2 value is *0.7127 *.
+
+```{r}
+set.seed(123)
+
+polynomial_model_dis <-lm(nox ~ poly(dis, 4), data = RegressionData)
+
+summary(polynomial_model_dis)
+
+mean(polynomial_model_dis$residuals^2)
+```
+
+## Polynomial Model Performance Metrics for `lstat`
+
+Here, I have built a polynomial regression model by using the `poly` function to specify a third degree polynomial for `lstat`.
+The MSE value for the model is *0.008355825* while the Adjusted R2 value is *0.3728*.
+
+
+```{r}
+set.seed(123)
+
+polynomial_model_lstat <-lm(nox ~ poly(lstat, 3), data = RegressionData)
+
+summary(polynomial_model_lstat)
+
+mean(polynomial_model_lstat$residuals^2)
+```
+
+## Polynomial Model Performance Metrics for `medv`
+
+Here, I have built a polynomial regression model by using the `poly` function to specify a fifth degree polynomial for `medv`.
+The MSE value for the model is *0.008383527* while the Adjusted R2 value is *0.3682*.
+
+
+```{r}
+set.seed(123)
+
+polynomial_model_medv <-lm(nox ~ poly(medv, 5), data = RegressionData)
+
+summary(polynomial_model_medv)
+
+mean(polynomial_model_medv$residuals^2)
+```
+
+
+## Basis Spline Model for `age`
+
+Apart from the polynomial fit I have tried in the previous code chunks, I will also consider using an alternative approach, such as basis splines, to check if the model fit can improve further.
+For basis splines I need to dictate the degrees of freedom, however since the range is larger than that for a polynomial degree, I will do this using a *for loop*.
+The formula specification for the `train()` function is not able to evaluate if I use the loop index inside a function like `poly()` or `bs()` due to which I have to make a copy of the dataset and subsequently append the result of `poly()` or `bs()` as a new variable which will then be referred to in the model formula. I have demonstrated this below for 20 possible values for the degrees of freedom.
+
+From the output of the plot shown below, it can bee seen that 4 degrees of freedom produces the lowest MSE.
+
+*Note, I have used a similar code in the following code chunks to find the degrees of freedom for the other input variables (dis, lstat and medv).*
+
+```{r, warning=FALSE}
+set.seed(123)
+
+train_control11 <- trainControl(method="LOOCV")
+ MSE <- rep(0,20)
+ 
+ for (i in 1:20){
+   Data <- RegressionData
+   Data$bspline <- bs(RegressionData$age, df=i)
+   fit <- train(nox~bspline + dis + lstat +medv, data= Data, method="lm",   
+                trControl= train_control11)
+   MSE[i] <- fit$results$RMSE
+ }   
+
+ plot(1:20, MSE, type="b", xlab="df")
+```
+
+
+## Basis Spline Model Performance Metrics for `age`
+
+If I refit the model with bs(age, df=4) I get the resultant plot shown below. 
+
+The degree to which the blue model fit matches the pink line suggests that  the correct shape of the relationship has likely been captured. The MSE value for the basis spline model is *0.005725663* which is less than the MSE value for the polynomial model (*MSE=0.00572601*) (refer to code chunk *Polynomial Model Performance Metrics for `age`*). However, there is a small difference between the two values. 
+
+Further, the basis spline model is a more complex model since it has more coefficients. In this regard, the polynomial model is better on the grounds of parsimony while the basis spline model is better on raw MSE value. 
+I will calculate the MSE value for other input variables using a basis spline model to determine whether to use a basis spline model or a polynomial model.
+
+```{r}
+set.seed(123)
+
+
+fit.age_df <- lm(nox ~ bs(age, df=4), data = RegressionData)
+
+plot(effect("age", mod=fit.age_df, partial.residuals=TRUE))
+
+summary(fit.age_df)
+
+mean(fit.age_df$residuals^2)
+
+
+```
+
+## Basis Spline Model for `dis`
+
+Here, I have used a similar code as detailed in the previous code chunk *Basis Spline Model for `age`* to determine the degrees of freedom for the input variable `dis`.
+
+From the output of the plot shown below, it can bee seen that 5 degrees of freedom produces the lowest MSE.
+
+```{r, warning=FALSE}
+set.seed(123)
+
+train_control12 <- trainControl(method="LOOCV")
+ MSE <- rep(0,20)
+ 
+ for (i in 1:20){
+   Data <- RegressionData
+   Data$bspline <- bs(RegressionData$dis, df=i)
+   fit <- train(nox~bspline + age + lstat +medv, data= Data, method="lm",   
+                trControl= train_control12)
+   MSE[i] <- fit$results$RMSE
+ }   
+
+ plot(1:20, MSE, type="b", xlab="df")
+```
+
+
+## Basis Spline Model Performance Metrics for `dis`
+
+If I refit the model with bs(dis, df=5) I get the resultant plot shown below. 
+The degree to which the blue model fit matches the pink line suggests that  the correct shape of the relationship has likely been captured. The MSE value for the basis spline model is *0.003636705* which is less than the MSE value for the polynomial model (*MSE=0.003820121*) (refer to code chunk *Polynomial Model Performance Metrics for `dis`*). However, similar to the results seen for input variable `age`, there is a small difference between the two values.
+
+
+```{r}
+set.seed(123)
+
+fit.dis_df <- lm(nox ~ bs(dis, df=5), data = RegressionData)
+
+plot(effect("dis", mod=fit.dis_df, partial.residuals=TRUE))
+
+summary(fit.dis_df)
+mean(fit.dis_df$residuals^2)
+```
+
+
+## Basis Spline Model for `lstat`
+
+Here, I have used a similar code as detailed in the previous code chunk *Basis Spline Model for `age`* to determine the degrees of freedom for the input variable `lstat`.
+
+From the output of the plot shown below, it can bee seen that 8 degrees of freedom produces the lowest MSE.
+
+```{r, warning=FALSE}
+set.seed(123)
+
+train_control13 <- trainControl(method="LOOCV")
+ MSE <- rep(0,20)
+ 
+ for (i in 1:20){
+   Data <- RegressionData
+   Data$bspline <- bs(RegressionData$lstat, df=i)
+   fit <- train(nox~bspline + age + dis +medv, data= Data, method="lm",   
+                trControl= train_control13)
+   MSE[i] <- fit$results$RMSE
+ }   
+
+ plot(1:20, MSE, type="b", xlab="df")
+ 
+```
+
+
+## Basis Spline Model Performance Metrics for `lstat`
+
+If I refit the model with bs(lstat, df=8) I get the resultant plot shown below. 
+
+The degree to which the blue model fit matches the pink line suggests that  the correct shape of the relationship has likely been captured. The MSE value for the basis spline model is *0.008106512* which is less than the MSE value for the polynomial model (*MSE= 0.008355825*) (refer to code chunk *Polynomial Model Performance Metrics for `lstat`*). However, similar to the results seen for input variables `age` and `dis`, there is a small difference between the two values.
+
+
+```{r}
+set.seed(123)
+
+fit.lstat_df <- lm(nox ~ bs(lstat, df=8), data = RegressionData)
+
+plot(effect("lstat", mod=fit.lstat_df, partial.residuals=TRUE))
+
+summary(fit.lstat_df)
+
+mean(fit.lstat_df$residuals^2)
+
+```
+
+## Basis Spline Model for `medv`
+
+Here, I have used a similar code as detailed in the previous code chunk *Basis Spline Model for `age`* to determine the degrees of freedom for the input variable `medv`.
+
+From the output of the plot shown below, it can bee seen that 5 degrees of freedom produces the lowest MSE.
+
+
+```{r}
+set.seed(123)
+
+train_control14 <- trainControl(method="LOOCV")
+ MSE <- rep(0,20)
+ 
+ for (i in 1:20){
+   Data <- RegressionData
+   Data$bspline <- bs(RegressionData$medv, df=i)
+   fit <- train(nox~bspline + age + dis +lstat, data= Data, method="lm",   
+                trControl= train_control14)
+   MSE[i] <- fit$results$RMSE
+ }   
+
+ plot(1:20, MSE, type="b", xlab="df")
+```
+
+
+## Basis Spline Model Performance Metrics for `medv`
+
+If I refit the model with bs(medv, df=5) I get the resultant plot shown below. 
+
+The degree to which the blue model fit matches the pink line suggests that  the correct shape of the relationship has likely been captured. The MSE value for the basis spline model is *0.008380774* which is less than the MSE value for the polynomial model (*MSE= 0.008383527*) (refer to code chunk *Polynomial Model Performance Metrics for `medv`*). However, similar to the results seen for input variables `age`,`dis` and `lstat` there is a small difference between the two values.
+
+```{r}
+set.seed(123)
+
+fit.medv_df <- lm(nox ~ bs(medv, df=5), data = RegressionData)
+
+plot(effect("medv", mod=fit.medv_df, partial.residuals=TRUE))
+
+summary(fit.medv_df)
+
+mean(fit.medv_df$residuals^2)
+
+```
+
+
+## Performance Metrics for Basis Spline Model
+
+Here, I have built my basis spline model by using the degrees of freedom calculated previously for each input variable. 
+The MSE value for the basis spline model is *0.003051432*.
+
+```{r}
+set.seed(123)
+
+basis_spline_model <- lm(nox ~ bs(age, df=4) +bs(dis, df=5) + bs(lstat, df=8) + bs(medv, df=5), data = RegressionData)
+
+summary(basis_spline_model)
+
+mean(basis_spline_model$residuals^2)
+
+```
+
+
+## Performance Metrics for Polynomial Model
+
+Here, I have built my polynomial model by using the polynomial degree calculated for each input variable previously. The MSE value for the polynomial model is *0.003215836*  which is less than the MSE value for the linear model (*MSE= 0.004260951*) (refer to code chunk *Generate the Summary of the Linear Model*). 
+However, the MSE value for the basis spline model (*MSE= 0.003051432*) is less than the MSE value for the polynomial model (*MSE= 0.003215836*).
+
+Nevertheless, considering that the difference in the MSE values for the basis spline model and the polynomial model is small, I will proceed with a polynomial model for the sake of parsimony (the basis spline model is more complex since it has more coefficients than the polynomial model, as explained in code chunk *Basis Spline Model Performance Metrics for `age`*).
+
+It is also noteworthy to mention that while the input variables age, dis and medv are significant (p <0.001), the input variable lstat is not significant.
+
+Hence, the polynomial model is a better fit for the data since a low MSE value indicates that there is a good match between the actual and predicted dataset.
+
+```{r}
+set.seed(123)
+
+polynomial_model <-lm(nox ~ poly(age, 3) + poly(dis,4) + poly(lstat,3) + poly(medv,5), data = RegressionData)
+
+summary(polynomial_model)
+
+mean(polynomial_model$residuals^2)
+
+```
+
+
+## Compare the Polynomial Model and the Linear Model
+
+Here, I have used the `anova` function to compare the polynomial model and the linear model. From the output it can be seen that the difference between the two models is significant (p <0.001).
+Further, the polynomial model has a lower residual sum of squares (RSS) value (RSS= 1.6272) as compared to the linear model (RSS= 2.1560).
+RSS measures the level of variance in the error term (or residuals) of a regression model (the smaller the RSS value, the better the model fits the data). Hence, the polynomial model can be considered a better fit for the data.
+
+```{r}
+anova(lm.fit_model, polynomial_model)
+```
+
+## Calculate the Variance Inflation Factor for the Polynomial Model
+
+Here I have used the `vif()` function to compute the variance inflation factors for the polynomial model.
+
+The values in the second column [GVIF^(1/(2*Df)] are less than 5 which indicates low correlation among the variables (James et al., 2021).
+
+
+```{r}
+vif(polynomial_model)
+```
+
+## Diagnostic Plots for the Polynomial Model
+
+From the residuals vs. fitted plot it can be seen that the red line is more linear as compared to the diagnostic plot for the linear model (refer to code chunk *Diagnostic Plots*) (James et al., 2021).
+```{r}
+par(mfrow = c(2, 2))
+plot(polynomial_model)
+
+```
+
+
+
+## MODEL SELECTION
+
+## Best Subset Selection Using `regsubsets()` 
+
+Best subsets selection is a method that aims to find the subset of predictor variables that best predict the output variable by considering all possible combinations of the predictor variables.
+
+The `regsubsets()` function (from within the `leaps` package) can be used to perform best subset selection. The function identifies the best model (containing a given number of predictors), where best is quantified using RSS. The`regsubsets()` function follows the same syntax as `lm()`. 
+The output of the `summary()` command displays the best set of variables for each model size (James et al., 2021).
+
+An asterisk indicates that a given variable is included in the corresponding model. For instance, this output indicates that the best two-variable model only contains the variables *dis* and *medv* (*note, I have reported the variables without considering the coefficients of the same variable. In case the coefficients are considered the best two variable model would contain the first and second coefficient of dis input variable*).
+
+```{r}
+set.seed(123)
+
+regfit.full <- regsubsets(nox ~ poly(age, 3) + poly(dis,4) + poly(lstat,3) + poly(medv,5), data = RegressionData)
+
+reg.summary <- summary(regfit.full)
+
+print(reg.summary)
+```
+
+## `summary()` Function Output for `regsubsets()`
+
+The output of the `summary()` function also provides the following values- R2, Adjusted R2, RSS, Cp, and BIC. These values can be examined in order to select the best model.
+
+```{r}
+names(reg.summary)
+
+```
+
+Here, I have calculated the R2, RSS, Adjusted R2, Cp and BIC values 
+
+```{r}
+reg.summary$rsq
+
+reg.summary$rss
+
+reg.summary$adjr2
+
+reg.summary$cp
+
+reg.summary$bic
+```
+
+
+## Plot RSS and Adjusted R2
+
+In order to decide which model to select I will plot the RSS, Adjusted R2, Cp, and BIC for all of the models at once. The type = "l" option tells R to connect the plotted points with lines.
+
+```{r}
+par(mfrow = c(1, 2))
+plot(reg.summary$rss, xlab = "Number of Variables",
+    ylab = "RSS", type = "l")
+plot(reg.summary$adjr2, xlab = "Number of Variables",
+    ylab = "Adjusted RSq", type = "l")
+
+```
+
+## Identify Maximum Point of Vector
+
+The which.max() function can be used to identify the location of the maximum point of a vector. 
+
+```{r}
+which.max(reg.summary$adjr2)
+```
+
+## Indicate Model with Largest Adjusted R2
+
+The `points()` command puts points on a plot that has already been created, instead of creating a new plot.
+I have plotted a red dot to indicate the model with the largest Adjusted R2 statistic.
+```{r}
+plot(reg.summary$adjr2, xlab = "Number of Variables",
+    ylab = "Adjusted RSq", type = "l")
+points(8, reg.summary$adjr2[8], col = "red", cex = 2, 
+    pch = 20)
+```
+
+## Plot Cp Statistic
+
+Here, I have plotted Mallow's Cp and indicated the models with the smallest statistic using which.min().
+Mallows' Cp compares the precision and bias of the full model to models with a subset of the predictors (small Cp values indicate a better fit). A model with a small Mallows' Cp value can be considered relatively precise (has small variance) in estimating the true regression coefficients and predicting future responses.
+
+
+```{r}
+plot(reg.summary$cp, xlab = "Number of Variables",
+    ylab = "Cp", type = "l")
+
+which.min(reg.summary$cp)
+
+points(8, reg.summary$cp[8], col = "red", cex = 2,
+    pch = 20)
+```
+
+
+## Plot BIC Statistic
+
+Here, I have plotted the BIC and indicated the models with the smallest statistic using which.min().
+The Bayesian Information Criterion (BIC) is an index used in Bayesian statistics to pick between two or more alternative models (models with lower BIC are preferred).
+```{r}
+which.min(reg.summary$bic)
+
+plot(reg.summary$bic, xlab = "Number of Variables",
+    ylab = "BIC", type = "l")
+points(5, reg.summary$bic[5], col = "red", cex = 2,
+    pch = 20)
+```
+
+
+## Display the Selected Variables for R2
+
+The built-in plot() command from the `regsubsets()` function can be used to display the selected variables for the best model with a given number of predictors (ranked according to the BIC, Cp, adjusted R2, or AIC) (James et al., 2021).
+
+The top row of each plot contains a black square for each variable selected according to the optimal model associated with that statistic. There are 2 models with R2 of 0.76, while one model includes all 4 variables (age, dis, lstat and medv), the second model only includes 3 variables (age, dis and medv).
+
+```{r}
+plot(regfit.full, scale = "r2")
+```
+
+## Display the Selected Variables for Adjusted R2
+
+Adjusted R2 is a modified version of R-squared that has been adjusted for the number of predictors in the model. There are 4 models with adjusted R2 of 0.75, three of which only include 3 variables (age, dis and medv).
+```{r}
+plot(regfit.full, scale = "adjr2")
+```
+
+## Display the Selected Variables for Cp
+
+The model with the lowest Cp includes all 4 variables (age, dis , lstat, medv).
+
+```{r}
+plot(regfit.full, scale = "Cp")
+```
+
+## Display the Selected Variables for BIC
+
+Two models share a BIC close to −670 and only contain 3 variables (age, dis and medv).
+
+Based on the R2, Adjusted R2 and BIC model results I will consider removing the variable lstat as a predictor from my model. However, first I will conduct additional best subset selection tests.
+
+```{r}
+plot(regfit.full, scale = "bic")
+```
+
+
+
+## FORWARD STEPWISE SELECTION
+
+
+Now I will use the `regsubsets()` function to perform forward stepwise selection by using the argument method = "forward".
+
+The output of forward stepwise selection shows that the best one-variable model contains only dis, and the best two-variable model additionally includes medv (*note, I have reported the variables without considering the coefficients of the same variable. In case the coefficients are considered the best two variable model would contain the first and second coefficient of dis input variable*).
+
+```{r}
+set.seed(123)
+
+regfit.fwd <- regsubsets(nox ~ poly(age, 3) + poly(dis,4) + poly(lstat,3) + poly(medv,5), data = RegressionData, method = "forward")
+
+summary(regfit.fwd)
+```
+
+## Backward Stepwise Selection
+
+Here, I have performed backward stepwise selection by using the argument method= "backward".
+It can be seen that the best two variable  model includes dis and medv (*note, I have reported the variables without considering the coefficients of the same variable*).
+
+For this data, the best one-variable through four-variable models are each identical for best subset, forward and backward selection. 
+```{r}
+set.seed(123)
+
+regfit.bwd <- regsubsets(nox ~ poly(age, 3) + poly(dis,4) + poly(lstat,3) + poly(medv,5), data = RegressionData, method = "backward")
+
+summary(regfit.bwd)
+```
+
+ 
+## Check the Coefficients
+
+It can be seen that the coefficients are the same for the four models (reported in the next three code chunks).
+```{r}
+coef(regfit.full, 4)
+
+```
+
+## Coefficients for Model Obtained with Forward Stepwise Feature Selection
+
+```{r}
+coef(regfit.fwd, 4)
+```
+
+## Coefficients for Model Obtained with Backward Stepwise Feature Selection
+
+```{r}
+coef(regfit.bwd, 4)
+```
+
+
+## Split the Data into Training and Test Set
+
+In the following code chunks I will use different functions from the `caret` package to build my model, perform best subset selection and cross-validation. 
+
+Here, I have split the data into training (80%) and test datasets (20%) using the `createDataPartition` function (`createDataPartition()` tries to ensure a split that has a similar distribution of the supplied variable in both datasets). The training dataset is used to build the model, while the test dataset is an unseen dataset used to evaluate the performance of the model.
+I have built my linear model (saved as object called **model_regression**) and polynomial model (saved as object called **model_polynomial_regression**) using the training dataset. Next, I have used the `predict` function to obtain model predictions for both the linear model and the polynomial model.
+Subsequently, I have derived the model performance metrics such as R2, Root Mean Square Error (RMSE) and Mean Absolute Error (MAE) for both the linear model and the polynomial model. 
+
+Here is a brief description of the performance metrics-1) *R2*- R2 is a measure of the goodness of fit for linear regression models. It indicates the percentage of the variance in the dependent variable that the independent variables explain collectively (higher R2 values indicates that the model is a good fit); 2)*RMSE*- RMSE indicates the average distance between the predicted values from the model and the actual values in the dataset (lower values of RMSE indicate better fit); 3)*MAE*- MAE refers to the mean of the absolute values of each prediction error on all instances of the test dataset. Prediction error refers to the difference between the actual value and the predicted value for that instance (lower MAE values are better).
+
+The following model performance metric values were obtained for the linear model -1)the R2 value for the linear model is = 0.6882053; 2)the RMSE value for the linear model is = 0.06683504 and; 3)the MAE value for the linear model is = 0.0496848
+
+```{r}
+set.seed(123)
+
+random_sample_regression <- createDataPartition(RegressionData$nox, p=0.8, list=FALSE)
+
+training_dataset_regression <- RegressionData[random_sample_regression,]
+
+testing_dataset_regression <- RegressionData[-random_sample_regression,]
+
+model_regression <-lm(nox ~ age + dis + lstat + medv, data = training_dataset_regression)
+
+model_polynomial_regression <- lm(nox ~ poly(age, 2) + poly(dis,4) +poly(lstat,3) + poly(medv,5), data = training_dataset_regression)
+
+
+predictions_regression <- predict(model_regression, testing_dataset_regression)
+
+predictions_polynomial_regression <- predict(model_polynomial_regression, testing_dataset_regression)
+
+model_performance_metrics <- data.frame(R2= R2(predictions_regression, testing_dataset_regression$nox),
+           RMSE= RMSE(predictions_regression, testing_dataset_regression$nox),
+           MAE = MAE(predictions_regression, testing_dataset_regression$nox))
+
+polynomial_model_performance_metrics <- data.frame(R2= R2(predictions_polynomial_regression, testing_dataset_regression$nox),
+           RMSE= RMSE(predictions_polynomial_regression,     testing_dataset_regression$nox),
+           MAE = MAE(predictions_polynomial_regression, testing_dataset_regression$nox))
+
+print(model_performance_metrics)
+
+
+```
+
+## Polynomial Model Performance Metrics (training dataset)
+
+Here, I have reported the performance metrics for the polynomial model- 1)the R2 value for the linear model is = 0.777654; 2)the RMSE value for the linear model is = 0.05644763 and; 3)the MAE value for the linear model is = 0.03985989	
+
+It can be seen that the R2 value for the polynomial model (R2=0.777654) is higher than the R2 value for the linear model (R= 0.6882053). Additionally, the RMSE value for the polynomial model (RMSE= 0.05644763) is lower than the RMSE value for the linear model (RMSE=0.06683504). Similarly, the MAE value for the polynomial model (MAE=0.03985989) is lower than the MAE value for the linear model (MAE=0.0496848). Therefore, on the basis of the explanation provided in the code chunk *Split the data into Training and Test Set*, the polynomial model can be considered a better fit than the linear model.
+
+```{r}
+set.seed(123)
+
+print(polynomial_model_performance_metrics)
+```
+
+## Best Subset Selection Using `caret` Package
+
+Here, I have performed linear Regression with forward selection by using `method = "leapForward"`.
+The function `trainControl` generates parameters that further control how models are created, with possible values such as `cv`, `repeatedcv`, `LOOCV` etc. I have specified the method as `cv`, `number` controls with the number of folds in K-fold cross-validation and has been set as 10. 
+Therefore, training control has been defined as a 10 fold cv and saved as a new object called **train_control**.
+
+*(Note- Cross-validation, i.e., cv, is a resampling procedure used to evaluate machine learning models on a training data. K-Fold CV refers to when a dataset is split into K number of folds, and each fold is used as a testing set at some point.)*
+
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="cv", number=10)
+
+forward_polynomial_regression_model <- train(nox ~ poly(age, 2) + poly(dis,4) +poly(lstat,3) + poly(medv,5), data = training_dataset_regression, method="leapForward", trControl = train_control)
+
+forward_polynomial_regression_model
+
+```
+
+## Predictors Selected from Forward Selection
+
+All four input variables (age, dis, lstat and medv) were selected from the output of forward selection.
+```{r}
+predictors(forward_polynomial_regression_model)
+```
+
+## Backward Selection
+
+Here, I have performed linear Regression with backward selection by using `method = "leapBackward"`.
+
+Training control has been defined as a 10 fold cv.
+
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="cv", number=10)
+
+backward_regression_model <- train(nox ~ poly(age, 2) + poly(dis,4) +poly(lstat,3) + poly(medv,5), data = training_dataset_regression, method="leapBackward", trControl = train_control)
+
+backward_regression_model
+```
+
+## Predictors Selected from Backward Selection
+
+All four input variables (age, dis, lstat and medv) were selected from the output of backward selection.
+
+```{r}
+predictors(backward_regression_model)
+```
+
+## Recursive Feature Elimination
+
+Recursive Feature Elimination (RFE) is another algorithm for selecting the most relevant features for predicting the output variable.
+RFE applies a backward selection process to find the best combination of features.
+In the first step, RFE builds the model including all features and calculates the importance of each feature in the model. Next, the features are rank-ordered and the least important features are removed iteratively based on model evaluation metrics (e.g., RMSE, accuracy, and Kappa). 
+
+The `rfeControl()` function can be used to specify the model and the methods for prediction. The function `lmFuncs` has been used to specify linear regression. The `method` has been set as `repeatedcv` and `5` number of repeats have been specified. The `verbose` option prevents copious amounts of output from being produced.
+
+The syntax used by the `rfe` function is as follows-
+`features_data_train` refers to a matrix or data frame of predictor variables (age, dis, lstat, medv), `target_data_train` refers to a vector (numeric or factor) of outcome (nox), `sizes` refers to an integer vector for the specific subset sizes that should be tested, this has been set as c(1:4).
+The output of `rfe` has been saved as a new object called **result_rfe**.
+
+From the RFE output the top three predictors are - **dis**, **medv** and **age** (note that the predictor **lstat** has not been included).
+It is noteworthy to mention that the previously made plots for R2, Adjusted R2 and BIC also selected a model with the same 3 predictor variables (age, dis and medv). Further, the summary of the polynomial model showed that *lstat* is not a significant predictor while the other variables (*age, dis and medv*) are significant predictors (refer to code chunk *Performance Metrics for Polynomial Model*).
+Therefore, in order to build a parsimonious model, for my final model I will only use three input variables, i.e., *age, dis and medv*, while *lstat* will not be included as an input variable.
+
+```{r}
+set.seed(123)
+features_data <- RegressionData %>%
+  select(age, dis, lstat, medv) %>%
+  as.data.frame()
+
+target_data <- RegressionData$nox
+
+inTrain <- createDataPartition(target_data, p = .80, list = FALSE)[,1]
+
+features_data_train <- features_data[inTrain, ]
+features_data_test  <- features_data[-inTrain, ]
+
+target_data_train <- target_data[inTrain]
+target_data_test  <- target_data[-inTrain]
+
+
+control <- rfeControl(functions = lmFuncs, 
+                      method = "repeatedcv", 
+                      repeats = 5, 
+                      verbose =FALSE) 
+
+result_rfe <- rfe(features_data_train, target_data_train,
+                 sizes = c(1:4),
+                 rfeControl = control)
+
+print(result_rfe)
+
+predictors(result_rfe)
+```
+
+## Diagnostic Plots for Polynomial Model After Best Subset Selection
+
+Here, I have made diagnostic plots for my polynomial model with the best subset of variables (*age, dis and medv*).
+The residuals vs. fitted plot appears similar to the plot for the polynomial model with all input variables (refer to *Diagnostic Plots for the Polynomial Model*). The red line appears approximately linear and horizontal which indicates that the linearity assumption holds well.
+```{r}
+set.seed(123)
+
+polynomial_model_best_predictors <-lm(nox ~ poly(age, 3) + poly(dis,4) + poly(medv,5), data = RegressionData)
+
+
+par(mfrow = c(2, 2))
+plot(polynomial_model_best_predictors)
+
+```
+
+## Generate Summary of Polynomial Model with Best Predictors
+
+Here, I have generated the summary of the polynomial model with the best predictors. The MSE value for the polynomial model with best subset of predictors is *0.003245404* and Adjusted R2 value is *0.7519*.
+
+```{r}
+summary(polynomial_model_best_predictors)
+
+mean(polynomial_model_best_predictors$residuals^2)
+```
+
+# Calculate the Variance Inflation Factor for the Polynomial Model with Best Predictors
+
+Here I have used the `vif()` function to compute the variance inflation factors for the polynomial model with the best subset of predictors.
+
+The values in the second column [GVIF^(1/(2*Df)] are less than 5 which indicates low correlation among the variables (James et al., 2021).
+
+
+```{r}
+set.seed(123)
+vif(polynomial_model_best_predictors)
+
+```
+
+
+## LOOCV for Polynomial Model with Best Predictors (Training Dataset)
+
+Here, I have used the resampling method `LOOCV` within the function `trainControl` to perform cross validation on the polynomial model with best subset of predictors. Within the `train` function the method has been specified as `lm` indicating linear regression.
+
+The following cross validated values were obtained from the output- 1)RMSE= 0.05869207; 2)R2= 0.7391741; 3)MAE= 0.04299219
+
+(*Note, Leave-One-out Cross-Validation (LOOCV) refers to when only a single observation is held out for validation and the model is evaluated for every held out observation.*)
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="LOOCV")
+
+model_loocv_best_subset <- train(nox ~ poly(age, 2) + poly(dis,4) + poly(medv,5), data = training_dataset_regression, method="lm", trControl = train_control)
+
+model_loocv_best_subset
+
+```
+
+## LOOCV for Polynomial Model with Best Predictors (Test Dataset)
+
+Here, I have performed `LOOCV` cross validation on the polynomial model with the best subset of predictors, using the test dataset.
+
+The following cross validated values were obtained from the output- 1)RMSE= 0.06041108; 2)R2= 0.7445167; 3)MAE= 0.04520145
+
+The RMSE value for the test data (RMSE= 0.06041108) is higher than the RMSE value for the training data (RMSE=0.05869207). Similarly the R2 value for the test data (R2= 0.7445167) is higher than the R2 value for the training data (R2= 0.7391741). The MAE value for the test data (MAE= 0.04520145) is higher than the MAE value for the training data (MAE= 0.04299219). It is evident that the difference between the training data and test data values is small. Therefore, the model performance can be considered accurate.
+
+
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="LOOCV")
+
+model_loocv_best_subset_test_data <- train(nox ~ poly(age, 2) + poly(dis,4) + poly(medv,5), data = testing_dataset_regression, method="lm", trControl = train_control)
+
+model_loocv_best_subset_test_data
+
+```
+
+
+## K-Fold CV for Polynomial Model with Best Predictors (Training Dataset)
+
+Here, I have used `cv` method to perform cross validation on the polynomial model with the best subset of predictors. I have specified the number of folds as 10. 
+
+
+The following cross validated values were obtained from the output- 1)RMSE= 0.05810927; 2)R2= 0.7541923; 3)MAE= 0.04324232
+
+
+
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="cv", number=10)
+
+regression_model_best_subset <- train(nox ~ poly(age, 2) + poly(dis,4) + poly(medv,5), data = training_dataset_regression, method="lm", trControl = train_control)
+
+regression_model_best_subset
+```
+
+## K-Fold CV for Polynomial Model with Best Predictors (Test Dataset)
+
+Here, I have used `cv` method to perform cross validation on the polynomial model with the best subset of predictors. I have specified the number of folds as 10. The testing dataset has been used.
+
+The following cross validated values were obtained from the output- 1)RMSE= 0.05712169; 2)R2= 0.7922356; 3)MAE= 0.04372613
+
+
+The RMSE value for the test dataset (RMSE= 0.05712169) is lower than the RMSE value for the training data (RMSE=0.05810927). The R2 value for the test data (R2= 0.7922356) is higher than that for the training data (R2= 0.7541923). The MAE value for the test data (MAE= 0.04372613) is higher than the MAE value for the training data (MAE=0.04324232). It is evident that the difference between the training data and test data values is small. Therefore, the model performance can be considered accurate.
+
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="cv", number=10)
+
+regression_model_best_subset_test <- train(nox ~ poly(age, 2) + poly(dis,4) + poly(medv,5), data = testing_dataset_regression, method="lm", trControl = train_control)
+
+regression_model_best_subset_test
+
+```
+
+
+##  K-Fold CV for Polynomial Model with Best Predictors (Complete Dataset)
+
+Here, I have used `cv` method to perform cross validation on the polynomial model with the best subset of predictors. I have specified the number of folds as 10. The complete dataset has been used.
+
+The following cross validated values were obtained from the output- 1)RMSE= 0.05736675; 2)R2= 0.7597412; 3)MAE= 0.04230086
+
+On the basis of these values, the model can be considered accurate.
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="cv", number=10)
+
+cross_validation_entire_data <- train(nox ~ poly(age, 2) + poly(dis,4) + poly(medv,5), data = RegressionData, method="lm", trControl = train_control)
+
+cross_validation_entire_data
+```
+
+
+## Final Model
+
+The final polynomial model includes three predictors i.e., *age, dis and medv*. The MSE value of the model is *0.003245404* and the Adjusted R2 value is *0.7519*.
+
+From the model it can be interpreted that nitrogen oxide concentration increases with increase in the proportion of owner-occupied units built prior to 1940. Conversely, nitrogen oxide concentration reduces with increase in distance to the five Boston employment centres. An increase in nitrogen oxide concentration is associated with a decrease in the median value of owner-occupied homes.
+
+```{r}
+set.seed(123)
+
+final_polynomial_model <-lm(nox ~ poly(age, 3) + poly(dis,4) + poly(medv,5), data = RegressionData)
+
+summary(final_polynomial_model)
+
+mean(final_polynomial_model$residuals^2)
+```
+
+
+
+
+
+## QUESTION 2
+
+## Read in the Data
+
+In this code chunk I have read in my data and saved it as an object called **ClassificationData**. The `head` function has been used to view the data.
+
+This is a description of the dataset columns- 1) Sales - unit sales (in thousands) at each location; 2) CompPrice - price charged by competitor at each location; 3) Price - price company charges for car seats at each site; 4) ShelveLoc - a factor with levels Bad and Good, indicating the quality of the shelving location for the car seats at each site; 5) Age - average age of the local population.
+
+In the following code chunks I will try and predict whether stores will place the car seats in a good or bad shelf location using what is known about current sales, competition, and local demographics. Here, *ShelveLoc* is the output variable. The input variables are *Sales, CompPrice, Price and Age*.
+
+
+```{r}
+set.seed(123)
+
+ClassificationData <- Carseats[Carseats$ShelveLoc=="Good"|Carseats$ShelveLoc=="Bad",]
+ClassificationData <- ClassificationData[,c(1,2,6,7,8)]
+
+head (ClassificationData)
+
+```
+
+## Recode the Data
+
+Here, I have recoded the values of *ShelveLoc* column as 0 = “Bad” and 1 = “Good”.
+```{r}
+ClassificationData[,4] <- if_else(ClassificationData[,4] == "Bad", 0, if_else(ClassificationData[,4] == "Good", 1, 99))
+
+head(ClassificationData)
+
+```
+
+## Check for Missing Values
+
+Here, I have checked if there are any missing values in my data. The output confirmed that there are no missing values in the data.
+
+```{r}
+sum(is.na(ClassificationData))
+```
+
+## Determine the Correlation Between the Input Variables and the Output Variable
+
+Here I have used the `correlate` and `focus` (from `corrr` package) functions to determine the correlation between the input variables (Age, Price, CompPrice and Sales) and the output variable (ShelveLoc).
+
+The output shows that there is a negligible positive correlation between shelf location and age (0.017); shelf location and price have a negligible positive correlation (0.074); shelf location and CompPrice have a negligible positive correlation (0.057); shelf location and sales have a moderate positive correlation (0.696) (Schober et al., 2018).
+
+```{r}
+ClassificationData$ShelveLoc <- as.numeric(ClassificationData$ShelveLoc)
+ClassificationData %>% correlate() %>% focus(ShelveLoc)
+```
+
+
+## Determine the Correlation Between all Variables
+
+Here, I have used the `cor` function to calculate the correlation between all variables. The output has been saved as a new object called **corr_data**
+
+```{r}
+corr_data = cor(ClassificationData)
+
+print(corr_data)
+```
+
+
+## Plot a Correlation Matrix
+
+Here, I have used the `ggcorrplot` function to plot a correlation matrix displaying the correlation between all the variables. In the line of code that follows `ggcorrplot`, `hc.order= True` is used for reordering the correlation matrix using hierarchical clustering, `type="upper"` is used to specify the type of correlogram layout,i.e., upper triangle, `lab=TRUE` is used to add correlation coefficients and `ggtheme` has been used to set the theme of the plot.
+I have used the previously created *corr_data* object to plot the correlation matrix.
+
+Among all the variables, Shelf location and Sales have the strongest positive correlation (0.7).
+```{r}
+ggcorrplot(corr_data, hc.order = TRUE, type = "upper", lab= TRUE, lab_size=3,ggtheme = ggplot2::theme_gray, title="Correlation Between Each Variable in Carseats Dataset")
+
+```
+
+
+
+## Build a Logistic Regression Model
+
+In this code chunk I will build a logistic regression model to predict whether shelf location will be good or bad using the input variables Sales, Age, Price and CompPrice.
+
+In order to fit the logistic regression model I will use the `glm()` function. The syntax of the glm() function is similar to that of `lm()`, with the exception that I need to pass in the argument `family = binomial` in order to tell R to run a logistic regression rather than some other type of generalized linear model (James et al., 2021).
+
+It can be seen that all predictors, i.e., Sales (p< 0.001), Age (p= 0.001), Price (p< 0.002) and CompPrice (p <0.001) are significant.
+
+```{r}
+set.seed(123)
+ClassificationData$ShelveLoc <- as.factor(ClassificationData$ShelveLoc)
+
+glm.fit_logistic <- glm(ShelveLoc ~ Sales + Age + Price + CompPrice, data = ClassificationData, family = binomial
+  )
+summary(glm.fit_logistic)
+
+```
+
+## Plot the Data for Input Variable `Sales` 
+
+
+Here, I will plot the input variable *Sales* to check how the model fits the data. In order to do so I will plot *Sales* to view the fitted effect with partial residuals.
+The output of the plot below shows the model prediction and 95% confidence bands in blue, while the partial residuals are represented as pink circles.
+
+I have made two plots by specifying `type="link"` and `type="response"` in the `plot` command (from the *effects* package). This shows either the model fit on the logit scale or on the original binary scale of the data. The logit scale is where the response is assumed to be linear. Therefore, `type="link"` is used to look for the possibility of non-linear relationships.
+
+The pink line (using a LOESS smoothing method) shows the general shape in the data. The degree to which the blue model fit matches the pink line suggests the correct shape of the relationship is likely being captured.
+
+*Note, in the code chunks that follow, I have used a similar approach to plot the other input variables (Age, Price and CompPrice).*
+```{r}
+
+plot(effect("Sales", mod=glm.fit_logistic, partial.residuals=TRUE), type="response")
+
+
+plot(effect("Sales", mod=glm.fit_logistic, partial.residuals=TRUE), type="link")
+
+```
+
+
+## Plot the Data for Input Variable `Age`
+
+Here, I have used a similar code as detailed in the previous code chunk (*Plot the Data for Input Variable `Sales`*) to plot the data for the input variable `Age`.
+The degree to which the blue model fit matches the pink line suggests the correct shape of the relationship is likely being captured.
+
+```{r}
+plot(effect("Age", mod=glm.fit_logistic, partial.residuals=TRUE), type="response")
+
+plot(effect("Age", mod=glm.fit_logistic, partial.residuals=TRUE), type="link")
+```
+
+## Plot the Data for Input Variable `Price`
+
+Here, I have used a similar code as detailed in the previous code chunk (*Plot the Data for Input Variable `Sales`*) to plot the data for the input variable `Price`.
+The degree to which the blue model fit matches the pink line suggests the correct shape of the relationship is likely being captured.
+
+
+```{r}
+plot(effect("Price", mod=glm.fit_logistic, partial.residuals=TRUE), type="response")
+
+plot(effect("Price", mod=glm.fit_logistic, partial.residuals=TRUE), type="link")
+```
+
+
+## Plot the Data for Input Variable `CompPrice`
+
+Here, I have used a similar code as detailed in the previous code chunk (*Plot the Data for Input Variable `Sales`*) to plot the data for the input variable `CompPrice`.
+The degree to which the blue model fit matches the pink line suggests the correct shape of the relationship is likely being captured.
+
+
+
+```{r}
+plot(effect("CompPrice", mod=glm.fit_logistic, partial.residuals=TRUE), type="response")
+
+plot(effect("CompPrice", mod=glm.fit_logistic, partial.residuals=TRUE), type="link")
+```
+
+## Report the Coefficients of the Logistic Regression Model
+
+Here, I have used the `coef` function to report the coefficients of the logistic regression model.
+
+```{r}
+coef(glm.fit_logistic)
+
+```
+
+
+## Report the Probability
+
+Here, I have used the `predict()` function to predict the probability that the shelf location is bad or good, given values of the predictors. The `type = "response"` option is used to output probabilities of the form P(Y=1|X).
+
+In case a data set is not specified to the predict() function, then the probabilities are computed for the training data that was used to build the logistic regression model (James, et al., 2021).
+
+I have printed only the first ten probabilities. These values correspond to the probability of the shelf location being good, rather than bad, because I previously set "Good"=1. 
+
+```{r}
+glm.probs <- predict(glm.fit_logistic, type = "response")
+glm.probs[1:10]
+```
+
+
+## Create a Vector of Predictions
+
+In order to make a prediction as to whether the shelf location will be good or bad I will convert the predicted probabilities into labels '0' (corresponding to "Bad") and '1' (corresponding to "Good"). 
+
+The following two commands create a vector of predictions based on whether the predicted probability of a shelf location being good is greater than or less than 0.5.
+
+The first command creates a vector of 181 '0' ("Bad") elements. The second line transforms to '1' ("Good") all of the elements for which the predicted probability of a shelf location being good exceeds 0.5. 
+
+```{r}
+glm.pred <- rep("0", 181)
+glm.pred[glm.probs > .5] = "1"
+
+```
+
+
+## Produce the Confusion Matrix
+
+In order to determine the number of observations that were correctly or incorrectly classified, I will use the `table()` function to produce a *confusion matrix*.
+Inputting the binary variables (0= Bad, 1= Good) produces a two by two table with counts of the number of times each combination occurred e.g. predicted {} and shelf location was good, predicted {} and shelf location was bad etc.
+
+```{r}
+set.seed(123)
+
+table(glm.pred, ClassificationData$ShelveLoc)
+```
+
+## Calculate the Predictions
+
+The diagonal elements of the confusion matrix indicate correct predictions, while the off-diagonals represent incorrect predictions.
+Hence, the model correctly predicted that the shelf location would be good in 80 locations and that it would be bad in 91 locations for a total of (80+91)= 171 correct predictions. 
+```{r}
+(80+91)/181
+```
+
+## Compute the Correct Predictions 
+
+Here, I have used the `mean()` function to compute the fraction of shelf locations for which the prediction was correct. In this case, logistic regression correctly predicted the shelf location 94.4% of the time.
+
+However, this result is misleading since the model was trained and tested on the same set of 181 observations. Therefore, *100%−94.4%= 5.6%*, is the *training error rate*.
+
+```{r}
+mean(glm.pred == ClassificationData$ShelveLoc)
+
+```
+
+## Split the Data into Training and Test Set
+
+One way of improving the accuracy assessment of the logistic regression model is by fitting the model using part of the data. Next, I will examine how well the model predicts the held out data, thereby providing a more realistic error rate.
+
+To implement this strategy, I will split the dataset into training data (a subset to train the model) and test data (a subset to test the trained model). Sixty seven percent of the observations have been included in the training data while 33% of the observations have been included in the test data. Allocating 2/3rd of the cases for training data is close to optimal for reasonable sized datasets (n ≥ 100) (Dobbin & Simon, 2011).
+The `sample` function has been used to extract a random subset of rows from the data frame.
+
+
+```{r}
+set.seed(123)
+
+train_classification <- sample(1:nrow(ClassificationData), size=121)
+ClassificationData.test <- ClassificationData[-train_classification,]
+
+ ShelveLoc_data <- ClassificationData$ShelveLoc[-train_classification]
+```
+
+
+## Obtain the Predicted Probabilitues Using Training Data
+
+I will now build a logistic regression model by only using the subset of the observations in the training data (using the `subset` argument). Next, I will
+obtain predicted probabilities of the shelf location being good from the test data.
+
+
+In the line of code following the `predict` function, `type` refers to the type of prediction required. The default option is on the scale of the linear predictors, whereas the alternative `"response"` is on the scale of the response variable. Hence, for a default binomial model the default predictions are of log-odds (probabilities on logit scale) and `type = "response"` can be used to obtain the predicted probabilities.
+
+```{r, warning=FALSE}
+set.seed(123)
+
+glm.fits_train <- glm(ShelveLoc ~ Sales + Age + Price + CompPrice, data = ClassificationData, family = binomial, subset = train_classification
+  )
+glm.probs <- predict(glm.fits_train, ClassificationData.test,
+    type = "response")
+
+```
+
+## Compute the Logistic Regression Model's Predictions for the Test Data 
+
+Here, I will compute the predictions for the test data and produce a confusion matrix using the `table` function.
+
+
+```{r}
+set.seed(123)
+
+glm.pred<- rep("0", 60)
+glm.pred[glm.probs > .5] <- "1"
+table(glm.pred, ShelveLoc_data)
+
+
+```
+
+## Compute the Correct Predictions for Logistic Regression Model
+
+Here, I have used the `mean()` function to compute the fraction of shelf locations for which the prediction was correct. In this case, logistic regression correctly predicted the shelf location 93.3% of the time.
+
+```{r}
+mean(glm.pred == ShelveLoc_data)
+
+```
+
+## Compute the Test Error Rate
+
+The `!=` notation means not equal to, therefore the last command computes the error rate for the test data. The test error rate is 6.7% [error rate = 1-Accuracy: (1-0.933)=0.067]
+
+Considering that the test error rate is small and all predictors were found to be significant (refer to code chunk *Build a Logistic Regression Model*), all input variables will be included in the model.
+
+```{r}
+mean(glm.pred != ShelveLoc_data)
+
+```
+
+
+## Linear Discriminant Analysis 
+
+In this code chunk I will perform Linear Discriminant Analysis (LDA) on the *ClassificationData*. In order to fit an LDA model, I will use the `lda` function (from within the `MASS` package). The `lda()` function follows a similar syntax as the `lm()`  and `glm()` function with the exception that the `family` option is not used. The model will be built only using the training data.
+
+The LDA output indicates that prior probabilities of group 0 (Bad) = 0.586 and group 1 (Good) = 0.413; in other words, 41.3,% of the training observations correspond to the shelving location being good for the car seat.
+The output also shows the group means, which are the average of each predictor within each class, and are used by LDA as estimates (James et al., 2021). 
+
+The coefficients of linear discriminants output provides the linear combination of Sales, Age, Price and CompPrice that are used to form the LDA decision rule. 
+LD1: 0.732×Sales + 0.036×Age + 0.072×Price -0.063×CompPrice
+
+```{r}
+set.seed(123)
+
+lda.fit <- lda(ShelveLoc ~ Sales + Age + Price + CompPrice, data = ClassificationData, subset = train_classification)
+
+lda.fit
+
+```
+
+## Obtain the LDA Predictions for the Test Data
+
+Here, I have used the `predict()` function which returns a list with three elements. The first element, *class*, includes LDA's predictions about the shelf location. The second element, *posterior*, is a matrix whose kth column contains the posterior probability that the corresponding observation belongs to the kth class (James et al., 2021). The third element, i.e., *x*, contains the linear discriminants described in the previous code chunk (refer to code chunk *Linear Discriminant Analysis*).
+
+```{r}
+lda.pred <- predict(lda.fit, ClassificationData.test)
+names(lda.pred)
+
+```
+## Produce the Confusion Matrix for LDA
+
+As seen for logistic regression previously (refer to code chunk *Compute the Logistic Regression Model's Predictions for the Test Data*), the LDA and logistic regression predictions are almost identical.
+```{r}
+set.seed(123)
+
+lda.class <- lda.pred$class
+table(lda.class, ShelveLoc_data)
+
+```
+
+## Compute the Correct Predictions for LDA
+
+Here, I have used the `mean()` function to compute the fraction of shelf locations for which the prediction was correct. In this case, logistic regression correctly predicted the shelf location 91.6% of the time.
+
+
+```{r}
+mean(lda.class == ShelveLoc_data)
+
+```
+
+## Quadratic Discriminant Analysis
+
+I will now fit a quadratic discriminant analysis (QDA) model to the *ClassificationData*. In order to build the QDA model I will use the `qda` function (from within the `MASS` package). The syntax for `qda()` is similar to that followed for the `lda()` function.
+
+
+The output of the QDA model provides the group means, however it does not contain the coefficients of the linear discriminants. This is because the QDA classifier involves a quadratic (not a linear function) of the predictors. 
+
+```{r}
+set.seed(123)
+
+qda.fit <- qda(ShelveLoc ~ Sales + Age + Price + CompPrice, data = ClassificationData, subset = train_classification)
+
+qda.fit
+```
+
+## Obtain the Predictions for the Test Data
+
+Here, I have used the `predict` function to obtain the predictions for the test data. The `predict` function for QDA works in the same way as used for LDA (refer to code chunk *Obtain the LDA Predictions for the Test Data*).
+
+```{r}
+qda.pred <- predict(qda.fit, ClassificationData.test)
+
+
+```
+
+
+## Produce the Confusion Matrix for QDA
+
+It can be seen that the predictions for QDA are similar to the predictions obtained by the logistic regression model and LDA.
+
+```{r}
+set.seed(123)
+
+qda.class <- qda.pred$class
+
+table(qda.class, ShelveLoc_data)
+```
+
+
+## Compute the Correct Predictions for QDA
+
+Here, I have used the `mean()` function to compute the fraction of shelf locations for which the prediction was correct. In this case, QDA correctly predicted the shelf location 93.3% of the time. The accuracy for QDA is the same as that obtained for the logistic regression model (refer to code chunk *Compute the Correct Predictions for Logistic Regression Model*).
+
+```{r}
+mean(qda.class == ShelveLoc_data)
+```
+
+## Naive Bayes
+
+In this code chunk, I will fit a Naive Bayes model to the *ClassificationData*. In order to fit the Naive Bayes model I will used the `naiveBayes()` function (from within the *e1071* package). The syntax used by `naiveBayes()` is similar to that used for the `lda()` and `qda()` functions. By default, this implementation of the Naive Bayes classifier models each quantitative feature using a Gaussian distribution.
+
+The output of the Naive Bayes model provides the estimated mean and standard deviation for each variable in each class. For instance, the mean for Sales is 5.416 for ShelveLoc= 0 (Bad), and the standard deviation is 2.408. 
+```{r}
+set.seed(123)
+
+nb.fit <- naiveBayes(ShelveLoc ~ Sales + Age + Price + CompPrice, data = ClassificationData, subset = train_classification)
+
+nb.fit
+```
+## Verify the Mean for `Sales`
+
+Here, I have verified the mean for `Sales` for ShelveLoc= 0 (Bad). The output shows that the mean is 5.416.
+
+```{r}
+mean(ClassificationData$Sales[train_classification][ClassificationData$ShelveLoc[train_classification] == "0"])
+
+```
+
+## Verify the Standard Deviation for `Sales`
+
+Here, I have verified the standard deviation for `Sales` for ShelveLoc= 0 (Bad). The output shows that the standard deviation is 2.408.
+
+
+```{r}
+sd(ClassificationData$Sales[train_classification][ClassificationData$ShelveLoc[train_classification] == "0"])
+```
+
+## Produce the Confusion Matrix
+
+Here, I have used the `predict` function to obtain the predictions for the test data and the `table` function has been used to produce the confusion matrix.
+
+
+```{r}
+set.seed(123)
+
+nb.class <- predict(nb.fit, ClassificationData.test)
+table(nb.class, ShelveLoc_data)
+
+```
+
+
+## Compute the Correct Predictions for Naive Bayes
+
+Here, I have used the `mean()` function to compute the fraction of shelf locations for which the prediction was correct. In this case, the Naive Bayes model correctly predicted the shelf location 81.6% of the time.
+
+```{r}
+mean(nb.class == ShelveLoc_data)
+
+```
+
+## K-Nearest Neighbors (KNN)
+
+Here, I will build a KNN model using the `knn()` function (from within the *class* package). This function works in a different manner from the other functions I have used so far. `knn()` performs predictions using a single command, instead of using a two- step approach which first involves building the model and the using the model to make predictions. The following four inputs are required by the function-
+
+
+1)A matrix containing the predictors associated with the training data. This has been as labeled *train.X* below.
+
+2)A matrix containing the predictors associated with the data for which I want to make predictions. This has been as labeled *test.X* below.
+
+3)A vector containing the class labels for the training observations. This has been labeled as *train.ShelveLoc* below.
+
+4)A value for K, the number of nearest neighbors to be used by the classifier.
+
+I will use the `cbind()` function (column bind), to bind the Sales, Age, Price and CompPrice variables together into two matrices, one for the training set and the other for the test set.
+
+
+```{r}
+set.seed(123)
+
+train.X <- cbind(ClassificationData$Sales, ClassificationData$Age, ClassificationData$Price, ClassificationData$CompPrice)[train_classification, ]
+
+test.X <- cbind(ClassificationData$Sales, ClassificationData$Age, ClassificationData$Price, ClassificationData$CompPrice)[-train_classification, ]
+
+train.ShelveLoc <- ClassificationData$ShelveLoc[train_classification]
+
+```
+
+
+## Produce the Confusion Matrix
+
+Here, I have produced a confusion matrix for the test data.
+
+```{r}
+set.seed(123)
+
+knn.pred <- knn(train.X, test.X, train.ShelveLoc, k = 1)
+
+table(knn.pred, ShelveLoc_data)
+```
+
+## Compute the Correct Predictions for KNN
+
+The results obtained by using K=1 are not very good, since only 65% of the observations are correctly predicted. It is noteworthy to mention that K=1 could have resulted in an overly flexible fit to the data. 
+```{r}
+(22+17)/60
+```
+## Produce the Confusion Matrix- Attempt 2
+
+Here, I have produced the confusion matrix again using K=2.
+
+```{r}
+set.seed(123)
+
+knn.pred2 <- knn(train.X, test.X, train.ShelveLoc, k = 2)
+
+table(knn.pred2, ShelveLoc_data)
+
+```
+
+
+## Compute the Correct Predictions for KNN- Attempt 2
+
+The accuracy has reduced with K=2 (58.3% accuracy), therefore, increasing K further does not lead to any improvements. 
+
+It appears that for this data, logistic regression (93.3% accuracy) and QDA (93.3% accuracy) provide the best results of the methods that I have examined so far.
+
+```{r}
+mean(knn.pred2 == ShelveLoc_data)
+```
+
+
+## BEST SUBSET SELECTION
+
+In the following code chunks I will use different functions from the `caret` package to build my model, perform best subset selection and cross validation.
+
+Best subsets selection is a method that aims to find the subset of predictor variables that best predict the output variable by considering all possible combinations of the predictor variables.
+ 
+## Stepwise Feature Selection for Logistic Regression Model
+
+The accuracy obtained for both logistic regression and QDA was 93.3%. However, I will proceed with the logistic regression model since it has certain advantages over QDA. Since I am not making any assumptions about the distribution of x (results of the log ratio of posteriors are modeled as a linear function of x), logistic regression is likely to be able to model data that includes non-normal features much better than QDA (James et al., 2021).
+
+Here, I have performed logistic regression with stepwise feature selection by using `method = "glmStepAIC"`. Training control has been defined as a 10 fold cv using the `trainControl` function.
+
+```{r}
+set.seed(123)
+
+train_control <- trainControl(method="cv", number=10)
+
+stepwise_logistic_regression_model <- train(ShelveLoc~., data=ClassificationData, subset=train_classification, method="glmStepAIC", family=binomial ,trControl = train_control)
+
+stepwise_logistic_regression_model
+```
+
+
+## Predictors Selected from Stepwise Feature Selection
+
+All four input variables (Sales, CompPrice, Price and Age) were selected from the output of stepwise feature selection.
+
+```{r}
+predictors(stepwise_logistic_regression_model)
+```
+
+## Recursive Feature Elimination (RFE)
+
+Here, I have used RFE in order to select the most relevant features for predicting the output variable.
+ 
+The `rfeControl()` function has been used to specify the model and the methods for prediction. The function `lrFuncs` has been used to specify logistic regression. The `method` has been set as `repeatedcv` and `5` number of repeats have been specified. The `verbose` option prevents copious amounts of output from being produced.
+
+The syntax used by the `rfe` function is as follows-
+`features_data_train` refers to a matrix or data frame of predictor variables (Sales, CompPrice, Price, Age), `target_data_train` refers to a vector (numeric or factor) of outcome (ShelveLoc), `sizes` refers to an integer vector for the specific subset sizes that should be tested, this has been set as c(1:4).
+The output of `rfe` has been saved as a new object called **results_rfe**.
+
+The `rfe` output indicates that all four input variables (Sales, CompPrice, Price, Age) have been selected. Therefore, all four variables will be included in the final model. Admittedly, all four input variables were also found to be significant predictors (refer to code chunk *Build a Logistic Regression Model*) and thus, removing any variable from the model would not be justified.
+
+```{r}
+set.seed(123)
+features_data <- ClassificationData %>%
+  select(Sales, CompPrice, Price, Age) %>%
+  as.data.frame()
+
+target_data <- ClassificationData$ShelveLoc
+
+inTrain <- createDataPartition(target_data, p = .80, list = FALSE)[,1]
+
+features_data_train <- features_data[inTrain, ]
+features_data_test  <- features_data[-inTrain, ]
+
+target_data_train <- target_data[inTrain]
+target_data_test  <- target_data[-inTrain]
+
+
+control <- rfeControl(functions = lrFuncs, 
+                      method = "repeatedcv", 
+                      repeats = 5, 
+                      verbose =FALSE) 
+
+results_rfe <- rfe(features_data_train, target_data_train,
+                 sizes = c(1:4),
+                 rfeControl = control)
+
+print(results_rfe)
+
+predictors(results_rfe)
+```
+
+
+## K-Fold CV for Logistic Regression Model
+
+In order to perform cross validation, I have split the data into training (67%) and test datasets (33%) using the `createDataPartition` function. 
+The training dataset has been used to build the model, while the test dataset has been used to evaluate the performance of the model.
+
+I have built my logistic regression model (saved as object called **model_logsitic_regression**) using the training dataset. 
+
+The training control has been specified as 10- Fold CV using the `trainControl` function.
+
+The cross validated accuracy obtained is *0.95*.
+
+```{r, warning=FALSE}
+set.seed(124)
+random_sample <- createDataPartition(ClassificationData$ShelveLoc, p=0.67, list=FALSE)
+
+training_dataset <- ClassificationData[random_sample,]
+
+testing_dataset <- ClassificationData[-random_sample,]
+
+train_control <- trainControl(method="cv", number=10)
+
+model_logistic_regression <- train(ShelveLoc~ Sales + Age + Price + CompPrice, data=training_dataset, method="glm", family=binomial ,trControl = train_control)
+
+model_logistic_regression
+```
+
+## K-Fold CV for Logsitic Regression Model Using Test Dataset
+
+Here, I have used `cv` method to perform cross validation on the logistic regression model. I have specified the number of folds as 10. The testing dataset has been used.
+
+The cross- validated accuracy obtained for the test data is *0.91* which is lower than the cross- validated accuracy obtained for the training data (*Accuracy= 0.95*). However, the difference in the values is small and therefore, the probabilities obtained by the model can be considered accurate.
+```{r, warning=FALSE}
+set.seed(124)
+train_control <- trainControl(method="cv", number=10)
+
+model_logistic_regression_test <- train(ShelveLoc~ Sales + Age + Price + CompPrice, data=testing_dataset, method="glm", family=binomial ,trControl = train_control)
+
+model_logistic_regression_test
+
+```
+
+
+## LOOCV for Logistic Regression Model (Training Dataset)
+
+Here, I have used the resampling method `LOOCV` within the function `trainControl` to perform cross validation on the logistic regression model. Within the `train` function the method has been specified as `glm` and `family` has been specified as `binomial` to indicate logistic regression.
+
+The cross- validated accuracy obtained is *0.94*.
+
+```{r, warning=FALSE}
+set.seed(123)
+
+train_control <- trainControl(method="LOOCV")
+
+model_logistic_regression_loocv <- train(ShelveLoc~ Sales + Age + Price + CompPrice, data=training_dataset, method="glm", family=binomial ,trControl = train_control)
+
+model_logistic_regression_loocv
+```
+
+
+## LOOCV for Logistic Regression Model (Test Dataset)
+
+Here, I have used the resampling method `LOOCV` within the function `trainControl` to perform cross validation on the logistic regression model. Within the `train` function the method has been specified as `glm` and `family` has been specified as `binomial` to indicate logistic regression.
+
+The cross- validated accuracy obtained for the test data is *0.89* which is lower than the cross- validated accuracy obtained for the training data (*Accuracy= 0.94*). However, the difference in the values is relatively small and therefore, the probabilities obtained by the model can be considered accurate.
+
+```{r, warning=FALSE}
+set.seed(124)
+
+train_control <- trainControl(method="LOOCV")
+
+model_logistic_regression_loocv_test <- train(ShelveLoc~ Sales + Age + Price + CompPrice, data=testing_dataset, method="glm", family=binomial ,trControl = train_control)
+
+model_logistic_regression_loocv_test
+```
+
+
+## K-Fold CV for Logsitic Regression Model Using Entire Dataset
+
+Here, I have used `cv` method to perform cross validation on the logistic regression model. I have specified the number of folds as 10. The complete dataset,i.e, `ClassificationData` has been used.
+
+The cross- validated accuracy obtained for the complete data is *0.93*
+which is close to the *94.4%* accuracy obtained for the logistic regression model (using the confusion matrix) in the code chunk *Compute the Correct Predictions for Logistic Regression*.
+Hence, the probabilities obtained by the model can be considered accurate.
+```{r}
+set.seed(124)
+train_control <- trainControl(method="cv", number=10)
+
+model_logistic_regression_entire_data <- train(ShelveLoc~ Sales + Age + Price + CompPrice, data=ClassificationData, method="glm", family=binomial ,trControl = train_control)
+
+model_logistic_regression_entire_data
+
+```
+
+
+## Final Model
+
+The final logistic regression model includes all input variables (*Sales, Age, Price and CompPrice*). It can bee seen that all input variables, i.e., *Sales* (p< 0.001), *Age* (p= 0.001), *Price* (p< 0.001) and *CompPrice* (P <0.001) are significant predictors. The accuracy for the model was found to be 94.4% using the entire dataset (refer to code chunk *Compute the Correct Predictions*), although further cross- validated accuracy has also been reported in the previous code chunks.
+
+The summary output shows that the null deviance for the model is *250.25* while the residual deviance is *33.68*.
+
+The null deviance indicated how well the response variable can be predicted by a model only including an intercept term. On the other hand, the residual deviance indicates how well the response variable can be predicted by a model with *p* predictor variables.  The lower the value, the better the model is able to predict the value of the response variable (Montgomery et al., 2012).
+Therefore, based on the residual deviance value of the model (residual deviance= *33.68*) it can be determined that the model is able to predict the value of the response variable well.
+
+
+The logistic regression model correctly predicted that the shelf location would be good in 80 locations and that it would be bad in 91 locations for a total of (80+91)= 171 correct predictions (refer to code chunk *Calculate the Predictions*).
+
+The logistic regression model predicts with 94.4% accuracy that the probability of a new shop placing the car seats in a good shelf location increases with increase in sales (at each location) and increase in price charged by competitor at each site. Additionally, the model predicts with 94.4% accuracy that the probability of a new shop placing the car seats in a good shelf location increases with increase in the price a company charges for car seats at each site and increase in average age of the local population.
+
+```{r}
+
+final_logistic_regression_model <- glm(ShelveLoc ~ Sales + Age + Price + CompPrice, data = ClassificationData, family = binomial)
+
+summary(final_logistic_regression_model)
+
+```
+
+
+References
+
+Dobbin, K. K., & Simon, R. M. (2011). Optimally splitting cases for training and testing high dimensional classifiers. BMC medical genomics, 4, 31. https://doi.org/10.1186/1755-8794-4-31
+
+James, G., Witten, D., Hastie, T., & Tibshirani, R. (2021). An introduction to statistical learning (2nd  ed.). Springer.
+
+Montgomery, D. C., Peck, E. A., & Vining, G.G. (2012). Introduction to linear regression analysis. New York: Wiley.
+
+Schober, P., Boer, C., & Schwarte, L. A. (2018). Correlation Coefficients: Appropriate Use and Interpretation. Anesthesia and analgesia, 126(5), 1763–1768. https://doi.org/10.1213/ANE.0000000000002864
+
+
+
+
+
+
